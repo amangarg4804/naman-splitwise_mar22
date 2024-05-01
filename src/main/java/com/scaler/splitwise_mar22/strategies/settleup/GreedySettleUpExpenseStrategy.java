@@ -22,6 +22,9 @@ public class GreedySettleUpExpenseStrategy implements SettleUpExpensesStrategy {
 
     @Override
     public List<Transaction> settle(List<Expense> expenses) {
+        // Note that this method doesn't care about whether the expenses belong to a group or not
+        //Caller of this method will make sure to pass Group expenses if Settle up request is for a group
+        // Step 1: Calculate amount for each user
         Map<User, Integer> extraMoney = new HashMap<>();
 
         for (Expense expense: expenses) {
@@ -42,9 +45,9 @@ public class GreedySettleUpExpenseStrategy implements SettleUpExpensesStrategy {
             }
         }
 
-
-        Queue<Record> negativeQueue = new ArrayDeque<>();
-        Queue<Record> positiveQueue = new ArrayDeque<>();
+        // Step2: Create a min heap for negative values and max heap for positive values.
+        PriorityQueue<Record> negativeQueue = new PriorityQueue<>((r1, r2) -> r1.pendingAmount - r2.pendingAmount);
+        PriorityQueue<Record> positiveQueue = new PriorityQueue<>((r1, r2) -> r2.pendingAmount - r1.pendingAmount);
 
         for (User user: extraMoney.keySet()) {
             if (extraMoney.get(user) < 0) {
@@ -63,11 +66,14 @@ public class GreedySettleUpExpenseStrategy implements SettleUpExpensesStrategy {
             Record firstPostive = positiveQueue.remove();
 
             if (firstPostive.pendingAmount > Math.abs(firstNegative.pendingAmount)) {
+                // If positive amount is more, we will have to push the positive value back to positiveQueue
+                // from will always be the user with negative amount
                 transactions.add(
                         new Transaction(firstNegative.user.toDto(), firstPostive.user.toDto(), Math.abs(firstNegative.pendingAmount))
                 );
                 positiveQueue.add(new Record(firstPostive.user, firstPostive.pendingAmount - Math.abs(firstNegative.pendingAmount)));
             } else {
+                // If negative amount is more, we will have to push the remaining negative value back to negativeQueue
                 transactions.add(
                         new Transaction(firstNegative.user.toDto(), firstPostive.user.toDto(), firstPostive.pendingAmount)
                 );
